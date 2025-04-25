@@ -3,12 +3,12 @@ from setuptools import setup, find_packages
 setup(
     name="match-series-batch",
     version="0.1.0",
-    author="Your Name",
-    author_email="your.email@example.com",
-    description="Batch non-rigid image alignment using pyMatchSeries.",
+    author="Haoran Ma",
+    author_email="haoran.ma@ikz-berlin.de",
+    description="Batch non-rigid image alignment using pymatchseries.",
     long_description=open('README.md').read(),
     long_description_content_type="text/markdown",
-    url="https://github.com/your_username/match-series-batch",
+    url="https://github.com/HaoranLMaoMao/match-series-batch",
     packages=find_packages(),
     install_requires=[
         "hyperspy>=1.6.1",
