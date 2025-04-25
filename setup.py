@@ -3,7 +3,7 @@ from setuptools import setup, find_packages
 setup(
     name="match-series-batch",
     version="0.1.0",
-    author="Haoran",
+    author="Haoran Ma",
     author_email="haoran.ma@ikz-berlin.de",
     description="Batch non-rigid image alignment using pymatchseries.",
     long_description=open('README.md').read(),
