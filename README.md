@@ -9,12 +9,14 @@ pip install match-series-batch
 ```
 
 After installation, you can use the command line tool:
+```
 match-series-batch --input /path/to/your/input_root --output /path/to/your/output_root --lambda 20 --prefix Aligned_ --dtype uint8
-
+```
 
 Example:
+```
 match-series-batch --input /data/STEM_series --output /data/STEM_aligned --lambda 15 --prefix Corrected_ --dtype uint16
-
+```
 
 # Command-line Arguments Description
 
