@@ -6,7 +6,7 @@ Batch processing tool for non-rigid alignment of image stacks using pyMatchSerie
 You can install `match-series-batch` via pip:
 ```bash
 pip install match-series-batch
-
+```
 
 After installation, you can use the command line tool:
 match-series-batch --input /path/to/your/input_root --output /path/to/your/output_root --lambda 20 --prefix Aligned_ --dtype uint8
