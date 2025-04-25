@@ -1,8 +1,6 @@
-# processing.py
-
 import os
 import hyperspy.api as hs
-from pyMatchSeries import MatchSeries
+from pymatchseries import MatchSeries
 from PIL import Image
 from tqdm import tqdm
 from .utils import extract_number, write_log
