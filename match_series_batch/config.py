@@ -6,5 +6,5 @@ regularization_lambda = 20
 filename_prefix = "Aligned_"
 save_dtype = 'uint8'
 
-# Default denoising method: 'nlmeans' or 'nlpca'
-denoising_method = 'none'
+# Default denoising method: 'nlmeans', 'nlpca', or 'none'
+denoising_method = 'nlmeans'
