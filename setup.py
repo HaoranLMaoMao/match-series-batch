@@ -2,10 +2,10 @@ from setuptools import setup, find_packages
 
 setup(
     name="match-series-batch",
-    version="0.1.0",
+    version="0.2.0",
     author="Haoran Ma",
     author_email="haoran.ma@ikz-berlin.de",
-    description="Batch non-rigid image alignment using pymatchseries.",
+    description="Batch non-rigid image registration with NLMeans or NLPCA denoising and stage average output.",
     long_description=open('README.md').read(),
     long_description_content_type="text/markdown",
     url="https://github.com/HaoranLMaoMao/match-series-batch",
@@ -15,6 +15,7 @@ setup(
         "pymatchseries>=0.1.0",
         "tqdm",
         "Pillow",
+        "scikit-image"
     ],
     classifiers=[
         "Programming Language :: Python :: 3",

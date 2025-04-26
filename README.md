@@ -1,6 +1,7 @@
-# Match-Series-Batch
+# Match-Series-Batch v0.2.0
 
-Batch processing tool for non-rigid alignment of image stacks using pyMatchSeries.
+
+Batch processing tool for non-rigid alignment of image stacks using pymatchseries and added lightweight noise reduction algorithm
 
 
 You can install `match-series-batch` via pip:
@@ -10,12 +11,12 @@ pip install match-series-batch
 
 After installation, you can use the command line tool:
 ```
-match-series-batch --input /path/to/your/input_root --output /path/to/your/output_root --lambda 20 --prefix Aligned_ --dtype uint8
+match-series-batch [OPTIONS]
 ```
 
 Example:
 ```
-match-series-batch --input /data/STEM_series --output /data/STEM_aligned --lambda 15 --prefix Corrected_ --dtype uint16
+match-series-batch --input ./mydata --output ./results --lambda 30 --prefix Final_ --dtype uint16 --denoising nlpca
 ```
 
 # Command-line Arguments Description
@@ -50,14 +51,21 @@ match-series-batch --input /data/STEM_series --output /data/STEM_aligned --lambd
   Useful for preserving dynamic range.  
   (Default: `uint8`)
 
+- `--denoising
+ "nlmeans" , "nlpca" or "none"
+ As set in config.py, Denoising method applied before saving images
+  (Default: `nlpca`)
+
+
+Notes
+    •    Input folder must contain subfolders (one for each sample), each with .dm4 images.
+    •    Output will include .tiff, .dm4, a full aligned stack .hspy, and stage-average images.
+    •    Full processing logs are recorded automatically.
 
 
 
-
-
-
-If your laptop CPU is M1/M2 of Macbook,MatchSeries can only use under X86_64,
-run these code of script in Terminal:
+If your laptop CPU is a Macbook M1/M2, MatchSeries will only work with X86_64,
+Run these scripts in a terminal to generate an X86 environment for M-series processors:
 ```
 # Go to the main directory
 cd ~
@@ -89,3 +97,4 @@ arch -x86_64 /usr/bin/env bash <<'EOF'
 
     echo "Installation is complete！"
 ```
+
