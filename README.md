@@ -21,6 +21,7 @@ match-series-batch --input ./mydata --output ./results --lambda 30 --prefix Fina
 
 or in Jupyter notebook, can use:
 ```
+import match_series_batch
 !match-series-batch[OPTIONS]
 ```
 # Command-line Arguments Description
