@@ -1,8 +1,16 @@
-# Match-Series-Batch v0.2.0
+# Match-Series-Batch v1.0.0
 
-
-Batch processing tool for non-rigid alignment of image stacks using pymatchseries and added lightweight noise reduction algorithm.
 pymatchseries is necessary.
+
+
+match-series-batch is a batch non-rigid alignment tool for microscope moving image (.dm4 format) sequences, integrating optional denoising, stage averaged plot export, automated logging and CLI calls, maint:
+
+    •    High throughput: batch processing of multiple sample folders at once
+    •    Flexible denoising: optional NLMeans, NLPCA or full skip
+    •    Automatic catalogue: generates a separate, time-stamped working catalogue for each calculation, preserving all intermediate results
+    •    Multiple outputs: TIFF, HSPY formats for previewing and research archiving.
+    •    No human intervention: completely unattended from loading to saving
+
 
 You can install `match-series-batch` via pip:
 ```bash
