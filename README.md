@@ -100,3 +100,10 @@ arch -x86_64 /usr/bin/env bash <<'EOF'
     echo "Installation is complete！"
 ```
 
+In the Mac's own Terminal, run:
+```
+arch -x86_64 /usr/bin/env bash
+
+source ~/miniforge_x86_64/bin/activate
+conda activate match-x86
+```
