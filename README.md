@@ -52,6 +52,7 @@ match-series-batch --input ./mydata --output ./results --lambda 30 --prefix Fina
   (Default: `uint8`)
 
 - `--denoising
+  
  "nlmeans" , "nlpca" or "none"
  As set in config.py, Denoising method applied before saving images
   (Default: `nlpca`)
