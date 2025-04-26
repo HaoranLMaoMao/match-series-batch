@@ -1,8 +1,8 @@
 # Match-Series-Batch v0.2.0
 
 
-Batch processing tool for non-rigid alignment of image stacks using pymatchseries and added lightweight noise reduction algorithm
-
+Batch processing tool for non-rigid alignment of image stacks using pymatchseries and added lightweight noise reduction algorithm.
+pymatchseries is necessary.
 
 You can install `match-series-batch` via pip:
 ```bash
