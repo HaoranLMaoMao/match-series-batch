@@ -51,7 +51,7 @@ match-series-batch --input ./mydata --output ./results --lambda 30 --prefix Fina
   Useful for preserving dynamic range.  
   (Default: `uint8`)
 
-- `--denoising
+- `--denoising`
   
  "nlmeans" , "nlpca" or "none"
  As set in config.py, Denoising method applied before saving images
@@ -59,6 +59,7 @@ match-series-batch --input ./mydata --output ./results --lambda 30 --prefix Fina
 
 
 Notes
+
     •    Input folder must contain subfolders (one for each sample), each with .dm4 images.
     •    Output will include .tiff, .dm4, a full aligned stack .hspy, and stage-average images.
     •    Full processing logs are recorded automatically.
