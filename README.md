@@ -1,6 +1,6 @@
-# Match-Series-Batch v1.0.0
+# Match-Series-Batch v1.1.0
 
-pymatchseries is necessary.
+pymatchseries is necessary.Also aequires scikit-learn to be installed for NLPCA.
 
 
 match-series-batch is a batch non-rigid alignment tool for microscope moving image (.dm4 format) sequences, integrating optional denoising, stage averaged plot export, automated logging and CLI calls, maint:

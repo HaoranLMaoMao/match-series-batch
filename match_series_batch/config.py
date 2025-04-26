@@ -7,4 +7,4 @@ filename_prefix = "Aligned_"
 save_dtype = 'uint8'
 
 # Default denoising method: 'nlmeans', 'nlpca', or 'none'
-denoising_method = 'nlpca'
+denoising_method = 'nlmeans'
