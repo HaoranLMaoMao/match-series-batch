@@ -57,7 +57,7 @@ match-series-batch --input /data/STEM_series --output /data/STEM_aligned --lambd
 
 
 If your laptop CPU is M1/M2 of Macbook,MatchSeries can only use under X86_64,
-run these code in Terminal:
+run these code of script in Terminal:
 ```
 # Go to the main directory
 cd ~
