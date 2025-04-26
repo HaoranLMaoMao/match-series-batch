@@ -9,7 +9,7 @@ You can install `match-series-batch` via pip:
 pip install match-series-batch
 ```
 
-After installation, you can use the command line tool:
+After installation, you can use the command line in Terminal :
 ```
 match-series-batch [OPTIONS]
 ```
@@ -19,6 +19,10 @@ Example:
 match-series-batch --input ./mydata --output ./results --lambda 30 --prefix Final_ --dtype uint16 --denoising nlpca
 ```
 
+or in Jupyter notebook, can use:
+```
+!match-series-batch[OPTIONS]
+```
 # Command-line Arguments Description
 
 - `--input`
