@@ -6,7 +6,6 @@ def make_dirs(path):
     os.makedirs(path, exist_ok=True)
 
 def extract_number(filename):
-    import re
     match = re.search(r"(\d+)", filename)
     return int(match.group(1)) if match else -1
 

@@ -1,8 +1,9 @@
-# Match-Series-Batch v1.1.0
+# Match-Series-Batch v1.1.1
 
 pymatchseries is necessary.Also aequires scikit-learn to be installed for NLPCA.
+make life easier
 
-
+## Advantage
 match-series-batch is a batch non-rigid alignment tool for microscope moving image (.dm4 format) sequences, integrating optional denoising, stage averaged plot export, automated logging and CLI calls, maint:
 
     •    High throughput: batch processing of multiple sample folders at once
@@ -11,20 +12,32 @@ match-series-batch is a batch non-rigid alignment tool for microscope moving ima
     •    Multiple outputs: TIFF, HSPY formats for previewing and research archiving.
     •    No human intervention: completely unattended from loading to saving
 
+## Features
+- Batch non-rigid registration for multiple image series
+- Supports flexible denoising: NLMeans, NLPCA, or none
+- Saves each registered frame as TIFF
+- Saves full registered stack as HSPY
+- Exports stage average images as TIFF and HSPY
+- Customizable NLPCA parameters: patch size, number of clusters, number of components
+- Automatically generates a unique working directory for each run
+- Detailed logging of processing steps
+- Command-line interface
 
+##Installation
 You can install `match-series-batch` via pip:
 ```bash
 pip install match-series-batch
 ```
 
+## Usage
 After installation, you can use the command line in Terminal :
-```
+``` bash
 match-series-batch [OPTIONS]
 ```
 
 Example:
-```
-match-series-batch --input ./mydata --output ./results --lambda 30 --prefix Final_ --dtype uint16 --denoising nlpca
+```bash
+match-series-batch --input ./input --output ./output --denoising nlpca --nlpca_patch_size 7 --nlpca_n_clusters 10 --nlpca_n_components 8
 ```
 
 or in Jupyter notebook, can use:
@@ -74,14 +87,14 @@ import match_series_batch
 Notes
 
     •    Input folder must contain subfolders (one for each sample), each with .dm4 images.
-    •    Output will include .tiff, .dm4, a full aligned stack .hspy, and stage-average images.
+    •    Output will include .tiff, a full aligned stack .hspy, and stage-average images.
     •    Full processing logs are recorded automatically.
 
 
-
+##Notice for Macbook Users
 If your laptop CPU is a Macbook M1/M2, MatchSeries will only work with X86_64,
 Run these scripts in a terminal to generate an X86 environment for M-series processors:
-```
+```bash
 # Go to the main directory
 cd ~
 
@@ -114,9 +127,11 @@ arch -x86_64 /usr/bin/env bash <<'EOF'
 ```
 
 In the Mac's own Terminal, run:
-```
+```bash
 arch -x86_64 /usr/bin/env bash
 
 source ~/miniforge_x86_64/bin/activate
 conda activate match-x86
 ```
+
+
