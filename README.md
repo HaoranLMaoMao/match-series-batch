@@ -1,4 +1,4 @@
-# Match-Series-Batch v1.1.2
+# Match-Series-Batch v1.1.3
 
 pymatchseries is necessary.Also aequires scikit-learn to be installed for NLPCA.
 make life easier
