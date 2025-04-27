@@ -1,5 +1,6 @@
 import os
 import numpy as np
+import datetime
 import hyperspy.api as hs
 from pymatchseries import MatchSeries
 from PIL import Image
@@ -17,7 +18,6 @@ def nl_pca_denoise(image: np.ndarray, patch_size: int = 7, n_clusters: int = 10,
     H = nmf.components_
     patches_denoised = W @ H
     patches_denoised = patches_denoised.reshape((-1, patch_size, patch_size))
-    # Simple averaging to reconstruct
     recon = np.zeros_like(image)
     weight = np.zeros_like(image)
     idx = 0
@@ -25,14 +25,13 @@ def nl_pca_denoise(image: np.ndarray, patch_size: int = 7, n_clusters: int = 10,
         for j in range(image.shape[1]-patch_size+1):
             recon[i:i+patch_size, j:j+patch_size] += patches_denoised[idx]
             weight[i:i+patch_size, j:j+patch_size] += 1
-            idx +=1
-    return recon/np.maximum(weight,1)
+            idx += 1
+    return recon / np.maximum(weight, 1)
 
 def process_one_sample(sample_name, input_folder, output_folder, log_file_path,
                        regularization_lambda=20, filename_prefix="Aligned_", save_dtype='uint8',
                        denoising_method='nlmeans',
                        nlpca_patch_size=7, nlpca_n_clusters=10, nlpca_n_components=8):
-    from pymatchseries import MatchSeries
     os.makedirs(output_folder, exist_ok=True)
 
     file_list = sorted(
@@ -40,47 +39,59 @@ def process_one_sample(sample_name, input_folder, output_folder, log_file_path,
         key=extract_number
     )
 
-    if len(file_list) == 0:
-        write_log(log_file_path, f"❌ No .dm4 files found in {input_folder}.")
-        return
+    write_log(log_file_path, f"\n📁 Processing sample [{sample_name}], {len(file_list)} images found.")
 
     images = []
-    for f in file_list:
+    for f in tqdm(file_list, desc=f"📥 Loading ({sample_name})"):
         path = os.path.join(input_folder, f)
         try:
-            s = hs.load(path, lazy=True)
-            images.append(s)
+            signal = hs.load(path, lazy=True)
+            if hasattr(signal, "data"):
+                images.append(signal)
+            else:
+                write_log(log_file_path, f"⚠️ Non-standard image (skipped): {f}")
         except Exception as e:
-            write_log(log_file_path, f"❌ Failed to load {f}: {e}")
+            write_log(log_file_path, f"❌ Failed to load (skipped): {f}, Reason: {e}")
 
-    if len(images) == 0:
-        write_log(log_file_path, f"❌ No images loaded in {input_folder}.")
+    if not images:
+        write_log(log_file_path, f"❌ No valid images for sample [{sample_name}], skipping.")
         return
-
-    stack = hs.stack(images)
-    match = MatchSeries(stack)
-    match.configuration["lambda"] = regularization_lambda
 
     try:
-        match.run()
+        stack = hs.stack(images)
     except Exception as e:
-        write_log(log_file_path, f"❌ MatchSeries run failed: {e}")
+        write_log(log_file_path, f"❌ Failed to stack images for sample [{sample_name}], Reason: {e}")
         return
 
-    deformed = match.get_deformed_images()
+    try:
+        match = MatchSeries(stack)
+        match.configuration["lambda"] = regularization_lambda
+        now = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+        match.path = match.path + f"_{now}"
+        write_log(log_file_path, f"📂 Generated new working directory: {match.path}")
+        match.run()
+    except Exception as e:
+        write_log(log_file_path, f"❌ Registration failed for [{sample_name}], Reason: {e}")
+        return
 
-    # Save frames
+    try:
+        deformed = match.get_deformed_images()
+    except Exception as e:
+        write_log(log_file_path, f"❌ Failed to retrieve deformed images for [{sample_name}], Reason: {e}")
+        return
+
+    # Save each frame
     for i, img in enumerate(deformed.data):
         img_norm = (img - img.min()) / (img.max() - img.min())
         img_array = (255 * img_norm).astype('uint8') if save_dtype == 'uint8' else (65535 * img_norm).astype('uint16')
-        out_path = os.path.join(output_folder, f"{filename_prefix}{i:03d}.tif")
-        Image.fromarray(img_array).save(out_path)
+        frame_path = os.path.join(output_folder, f"{filename_prefix}{i:03d}.tif")
+        Image.fromarray(img_array).save(frame_path)
 
-    # Save full stack
+    # Save aligned stack
     stack_out = os.path.join(output_folder, f"{filename_prefix}aligned_stack.hspy")
     deformed.save(stack_out, overwrite=True)
 
-    # Stage average
+    # Save stage average
     try:
         avg_img = deformed.data.mean(axis=0)
         avg_norm = (avg_img - avg_img.min()) / (avg_img.max() - avg_img.min())
@@ -101,4 +112,3 @@ def process_one_sample(sample_name, input_folder, output_folder, log_file_path,
         write_log(log_file_path, f"📷 Stage average images saved (TIFF and HSPY).")
     except Exception as e:
         write_log(log_file_path, f"❌ Failed to save stage average: {e}")
-

@@ -2,7 +2,7 @@ from setuptools import setup, find_packages
 
 setup(
     name="match-series-batch",
-    version="1.1.1",
+    version="1.1.2",
     author="Haoran Ma",
     author_email="haoran.ma@ikz-berlin.de",
     description="Batch non-rigid image registration with NLMeans or NLPCA denoising and stage average output.",

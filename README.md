@@ -1,4 +1,4 @@
-# Match-Series-Batch v1.1.1
+# Match-Series-Batch v1.1.2
 
 pymatchseries is necessary.Also aequires scikit-learn to be installed for NLPCA.
 make life easier
@@ -23,7 +23,7 @@ match-series-batch is a batch non-rigid alignment tool for microscope moving ima
 - Detailed logging of processing steps
 - Command-line interface
 
-## Installation
+##Installation
 You can install `match-series-batch` via pip:
 ```bash
 pip install match-series-batch
@@ -83,15 +83,6 @@ import match_series_batch
  As set in config.py, Denoising method applied before saving images
   (Default: `nlpca`)
 
-- `--nlpca_patch_size`
-     Small block size
-  
-- `--nlpca_n_clusters`
-     Number of clustering categories
-  
-- `--nlpca_n_components`
-    Number of principal components retained per cluster
-  
 
 Notes
 
@@ -100,8 +91,7 @@ Notes
     •    Full processing logs are recorded automatically.
 
 
-## Notice for Macbook Users
-
+##Notice for Macbook Users
 If your laptop CPU is a Macbook M1/M2, MatchSeries will only work with X86_64,
 Run these scripts in a terminal to generate an X86 environment for M-series processors:
 ```bash
