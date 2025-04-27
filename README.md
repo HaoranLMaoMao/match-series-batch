@@ -23,7 +23,7 @@ match-series-batch is a batch non-rigid alignment tool for microscope moving ima
 - Detailed logging of processing steps
 - Command-line interface
 
-##Installation
+## Installation
 You can install `match-series-batch` via pip:
 ```bash
 pip install match-series-batch
@@ -83,6 +83,15 @@ import match_series_batch
  As set in config.py, Denoising method applied before saving images
   (Default: `nlpca`)
 
+- `--nlpca_patch_size 
+     Small block size
+  
+- --nlpca_n_clusters 
+     Number of clustering categories
+  
+- --nlpca_n_components 
+    Number of principal components retained per cluster
+  
 
 Notes
 
