@@ -100,7 +100,8 @@ Notes
     •    Full processing logs are recorded automatically.
 
 
-##Notice for Macbook Users
+## Notice for Macbook Users
+
 If your laptop CPU is a Macbook M1/M2, MatchSeries will only work with X86_64,
 Run these scripts in a terminal to generate an X86 environment for M-series processors:
 ```bash
