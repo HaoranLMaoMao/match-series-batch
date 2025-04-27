@@ -83,13 +83,13 @@ import match_series_batch
  As set in config.py, Denoising method applied before saving images
   (Default: `nlpca`)
 
-- `--nlpca_patch_size 
+- `--nlpca_patch_size `
      Small block size
   
-- --nlpca_n_clusters 
+- --nlpca_n_clusters `
      Number of clustering categories
   
-- --nlpca_n_components 
+- --nlpca_n_components `
     Number of principal components retained per cluster
   
 
