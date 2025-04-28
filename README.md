@@ -83,6 +83,19 @@ import match_series_batch
  As set in config.py, Denoising method applied before saving images
   (Default: `nlpca`)
 
+- `--nlpca_patch_size`
+  
+  Used to measure spatial ‘similarity’ and to do PCA.Should cover at least one complete ‘minimum repetition unit’, e.g., in lattice images, which typically requires ≥ twice the lattice period.
+
+- `--nlpca_n_clusters `
+  
+KMeans (or other clustering) grouping was done first for all patches, and PCA was done independently for each group.The more clusters there are, the more ‘homogeneous’ each cluster is, and the finer the corresponding PCA is.
+
+  
+- `--nlpca_n_components `
+
+  How many basis vectors are used to represent patches in each cluster.The more principal components, the smaller the reconstruction error, but prone to retain noise.The fewer the principal components, the greater the denoising effort, but detail may be lost.
+
 
 Notes
 
