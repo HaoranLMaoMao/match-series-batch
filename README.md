@@ -23,7 +23,7 @@ match-series-batch is a batch non-rigid alignment tool for microscope moving ima
 - Detailed logging of processing steps
 - Command-line interface
 
-##Installation
+## Installation
 You can install `match-series-batch` via pip:
 ```bash
 pip install match-series-batch
