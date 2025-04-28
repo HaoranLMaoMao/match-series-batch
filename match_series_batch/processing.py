@@ -12,9 +12,6 @@ from .utils import extract_number, write_log
 
 
 def nl_pca_denoise(image: np.ndarray, patch_size: int = 7, n_clusters: int = 10, n_components: int = 8) -> np.ndarray:
-    """
-    Perform Non-Local PCA denoising on a single 2D image.
-    """
     patches = view_as_windows(image, (patch_size, patch_size))
     patches = patches.reshape(-1, patch_size * patch_size)
     nmf = NMF(n_components=n_components, beta_loss='kullback-leibler', solver='mu', max_iter=300)
@@ -33,6 +30,18 @@ def nl_pca_denoise(image: np.ndarray, patch_size: int = 7, n_clusters: int = 10,
     return recon / np.maximum(weight, 1)
 
 
+def find_valid_area(data):
+    mask = np.ones_like(data[0], dtype=bool)
+    for frame in data:
+        mask &= (frame > 0)
+    coords = np.argwhere(mask)
+    if coords.size == 0:
+        raise ValueError("No valid region found!")
+    top_left = coords.min(axis=0)
+    bottom_right = coords.max(axis=0) + 1
+    return tuple(slice(top_left[i], bottom_right[i]) for i in range(2))
+
+
 def process_one_sample(sample_name,
                        input_folder,
                        output_folder,
@@ -44,22 +53,17 @@ def process_one_sample(sample_name,
                        nlpca_patch_size=7,
                        nlpca_n_clusters=10,
                        nlpca_n_components=8):
-    """
-    Process one sample: load .dm4 images, perform non-rigid registration,
-    save full aligned stack, per-frame TIFFs, and stage average.
-    """
+
     os.makedirs(output_folder, exist_ok=True)
 
-    # Discover and sort .dm4 files
     file_list = sorted(
         [f for f in os.listdir(input_folder) if f.endswith('.dm4') and not f.startswith('._')],
         key=extract_number
     )
     write_log(log_file_path, f"\n📁 Processing sample [{sample_name}], {len(file_list)} images found.")
 
-    # Load images
     images = []
-    for fname in tqdm(file_list, desc=f"📥 Loading ({sample_name})"):
+    for fname in tqdm(file_list, desc=f"Loading ({sample_name})"):
         path = os.path.join(input_folder, fname)
         try:
             signal = hs.load(path, lazy=True)
@@ -73,14 +77,12 @@ def process_one_sample(sample_name,
         write_log(log_file_path, f"❌ No valid images for sample [{sample_name}], skipping.")
         return
 
-    # Stack images
     try:
         stack = hs.stack(images)
     except Exception as e:
         write_log(log_file_path, f"❌ Failed to stack images for sample [{sample_name}]: {e}")
         return
 
-    # Perform non-rigid registration
     try:
         match = MatchSeries(stack)
         match.configuration['lambda'] = regularization_lambda
@@ -89,17 +91,16 @@ def process_one_sample(sample_name,
         write_log(log_file_path, f"📂 Working directory: {match.path}")
         match.run()
     except Exception as e:
-        write_log(log_file_path, f"❌ Registration failed for [{sample_name}]: {e}")
+        write_log(log_file_path, f"❌ Registration failed for [{sample_name}], Reason: {e}")
         return
 
-    # Retrieve deformed images
     try:
         deformed = match.get_deformed_images()
     except Exception as e:
         write_log(log_file_path, f"❌ Failed to retrieve deformed images for [{sample_name}]: {e}")
         return
 
-    # 1) Save full aligned stack
+    # Save full aligned stack
     try:
         stack_out = os.path.join(output_folder, f"{filename_prefix}aligned_stack.hspy")
         deformed.save(stack_out, overwrite=True)
@@ -107,20 +108,31 @@ def process_one_sample(sample_name,
     except Exception as e:
         write_log(log_file_path, f"❌ Failed to save aligned stack for [{sample_name}]: {e}")
 
-    # 2) Save per-frame TIFFs
+    # Save per-frame TIFFs
     for i, img in enumerate(deformed.data):
         frame_path = os.path.join(output_folder, f"{filename_prefix}{i:03d}.tif")
         try:
             arr = np.array(img)
             norm = (arr - arr.min()) / (arr.max() - arr.min())
-            img_array = (255 * norm).astype('uint8') if save_dtype=='uint8' else (65535 * norm).astype('uint16')
+            img_array = (255 * norm).astype('uint8') if save_dtype == 'uint8' else (65535 * norm).astype('uint16')
             Image.fromarray(img_array).save(frame_path)
         except Exception as e:
             write_log(log_file_path, f"❌ Failed to save frame {i} for [{sample_name}]: {e}")
 
-    # 3) Save stage average
+    # Crop edges and save cropped stack
     try:
-        avg_img = np.array(deformed.data).mean(axis=0)
+        valid_slices = find_valid_area(deformed.data)
+        cropped = deformed.isig[valid_slices[0], valid_slices[1]]
+        cropped_out = os.path.join(output_folder, f"{filename_prefix}aligned_stack_cropped.hspy")
+        cropped.save(cropped_out, overwrite=True)
+        write_log(log_file_path, f"✂️ Cropped aligned stack saved: {cropped_out}")
+    except Exception as e:
+        write_log(log_file_path, f"❌ Cropping failed: {e}")
+        return
+
+    # Stage average and denoising on cropped stack
+    try:
+        avg_img = np.array(cropped.data).mean(axis=0)
         avg_norm = (avg_img - avg_img.min()) / (avg_img.max() - avg_img.min())
         if denoising_method == 'nlmeans':
             sigma = np.mean(estimate_sigma(avg_norm, channel_axis=None))
@@ -128,13 +140,11 @@ def process_one_sample(sample_name,
         elif denoising_method == 'nlpca':
             avg_norm = nl_pca_denoise(avg_norm, patch_size=nlpca_patch_size, n_clusters=nlpca_n_clusters, n_components=nlpca_n_components)
 
-        # Stage average TIFF
-        avg_array = (255 * avg_norm).astype('uint8') if save_dtype=='uint8' else (65535 * avg_norm).astype('uint16')
+        avg_array = (255 * avg_norm).astype('uint8') if save_dtype == 'uint8' else (65535 * avg_norm).astype('uint16')
         avg_tiff = os.path.join(output_folder, f"{filename_prefix}average.tif")
         Image.fromarray(avg_array).save(avg_tiff)
         write_log(log_file_path, f"💾 Stage average TIFF saved: {avg_tiff}")
 
-        # Stage average HSPY
         avg_sig = hs.signals.Signal2D(avg_norm.astype('float32'))
         avg_hspy = os.path.join(output_folder, f"{filename_prefix}average.hspy")
         avg_sig.save(avg_hspy, overwrite=True)

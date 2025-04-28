@@ -7,7 +7,7 @@ filename_prefix = "Aligned_"
 save_dtype = 'uint16'
 
 # Denoising method: 'nlmeans', 'nlpca', or 'none'
-denoising_method = 'none'
+denoising_method = 'nlpca'
 
 # NLPCA parameters
 nlpca_patch_size = 16
