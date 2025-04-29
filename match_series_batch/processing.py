@@ -1,143 +1,226 @@
 import os
 import numpy as np
-import datetime
 import hyperspy.api as hs
-from pymatchseries import MatchSeries
-from PIL import Image
 from tqdm import tqdm
 from skimage.restoration import denoise_nl_means, estimate_sigma
 from skimage.util import view_as_windows
 from sklearn.decomposition import NMF
+from sklearn.cluster import KMeans, SpectralClustering
+from sklearn.mixture import GaussianMixture
+from PIL import Image
 from .utils import extract_number, write_log
+from pymatchseries import MatchSeries
 
-
-def nl_pca_denoise(image: np.ndarray, patch_size: int = 7, n_clusters: int = 10, n_components: int = 8) -> np.ndarray:
+def extract_patches(image: np.ndarray, patch_size: int) -> np.ndarray:
     """
-    Perform Non-Local PCA denoising on a single 2D image.
+    Extracts all overlapping patches of size (patch_size x patch_size)
+    from a 2D image and flattens them into shape (num_patches, patch_size^2).
     """
     patches = view_as_windows(image, (patch_size, patch_size))
-    patches = patches.reshape(-1, patch_size * patch_size)
-    nmf = NMF(n_components=n_components, beta_loss='kullback-leibler', solver='mu', max_iter=300)
-    W = nmf.fit_transform(patches)
-    H = nmf.components_
-    patches_denoised = W @ H
-    patches_denoised = patches_denoised.reshape((-1, patch_size, patch_size))
-    recon = np.zeros_like(image)
-    weight = np.zeros_like(image)
-    idx = 0
-    for i in range(image.shape[0] - patch_size + 1):
-        for j in range(image.shape[1] - patch_size + 1):
-            recon[i:i+patch_size, j:j+patch_size] += patches_denoised[idx]
-            weight[i:i+patch_size, j:j+patch_size] += 1
-            idx += 1
+    return patches.reshape(-1, patch_size * patch_size)
+
+def reconstruct_from_patches(patches_denoised: np.ndarray,
+                             image_shape: tuple,
+                             patch_size: int,
+                             idxs: np.ndarray) -> np.ndarray:
+    """
+    Reconstructs a denoised image from its denoised patches.
+    Each patch is added back into its original location, and we
+    average overlapping contributions.
+    """
+    recon = np.zeros(image_shape, dtype=float)
+    weight = np.zeros(image_shape, dtype=float)
+    # coords of top‐left corner for each patch
+    coords = np.argwhere(np.ones((image_shape[0] - patch_size + 1,
+                                  image_shape[1] - patch_size + 1)))
+    for k, patch_index in enumerate(idxs):
+        i, j = coords[patch_index]
+        recon[i:i+patch_size, j:j+patch_size] += patches_denoised[k]
+        weight[i:i+patch_size, j:j+patch_size] += 1
+    # avoid division by zero
     return recon / np.maximum(weight, 1)
 
+def nlpca_denoise(image: np.ndarray,
+                  patch_size: int,
+                  n_clusters: int,
+                  n_components: int,
+                  method: str) -> np.ndarray:
+    """
+    Performs non-local PCA denoising via clustering + NMF.
+    method: 'nlpca-kmeans', 'nlpca-spectral', or 'nlpca-gmm'
+    """
+    # 1. Extract patches
+    patches = extract_patches(image, patch_size)
 
-def process_one_sample(sample_name,
-                       input_folder,
-                       output_folder,
-                       log_file_path,
-                       regularization_lambda=20,
-                       filename_prefix="Aligned_",
-                       save_dtype='uint8',
-                       denoising_method='nlmeans',
-                       nlpca_patch_size=7,
-                       nlpca_n_clusters=10,
-                       nlpca_n_components=8):
+    # 2. Cluster patches
+    if method == 'nlpca-kmeans':
+        clusterer = KMeans(n_clusters=n_clusters, random_state=0, n_init='auto')
+        labels = clusterer.fit_predict(patches)
+    elif method == 'nlpca-spectral':
+        clusterer = SpectralClustering(
+            n_clusters=n_clusters,
+            assign_labels='kmeans',
+            affinity='nearest_neighbors',
+            n_neighbors=10,
+            random_state=0,
+            n_jobs=-1
+        )
+        labels = clusterer.fit_predict(patches)
+    elif method == 'nlpca-gmm':
+        clusterer = GaussianMixture(
+            n_components=n_clusters,
+            covariance_type='full',
+            random_state=0
+        )
+        labels = clusterer.fit_predict(patches)
+    else:
+        raise ValueError(f"Unsupported method: {method}")
+
+    # 3. For each cluster, apply NMF to its patches
+    recon = np.zeros(image.shape, dtype=float)
+    weight = np.zeros(image.shape, dtype=float)
+    for c in range(n_clusters):
+        idxs = np.where(labels == c)[0]
+        if idxs.size == 0:
+            continue
+        patch_group = patches[idxs]
+
+        # Non-negative matrix factorization
+        nmf = NMF(n_components=n_components,
+                  beta_loss='kullback-leibler',
+                  solver='mu',
+                  max_iter=300)
+        W = nmf.fit_transform(patch_group)
+        H = nmf.components_
+        denoised_patches = (W @ H).reshape(-1, patch_size, patch_size)
+
+        # Reconstruct partial image
+        partial = reconstruct_from_patches(
+            denoised_patches, image.shape, patch_size, idxs
+        )
+        recon += partial
+        weight += (weight == 0)  # increment weight mask
+
+    # 4. Normalize
+    return recon / np.maximum(weight, 1)
+
+def process_one_sample(sample_name: str,
+                       input_folder: str,
+                       output_folder: str,
+                       log_file_path: str,
+                       regularization_lambda: float = 20,
+                       filename_prefix: str = "Aligned_",
+                       save_dtype: str = 'uint8',
+                       denoising_method: str = 'nlmeans',
+                       nlpca_patch_size: int = 7,
+                       nlpca_n_clusters: int = 10,
+                       nlpca_n_components: int = 8):
     """
-    Process one sample: load .dm4 images, perform non-rigid registration,
-    save full aligned stack, per-frame TIFFs, and stage average.
+    Performs the full pipeline on one sample:
+     1. Non-rigid registration (pyMatchSeries)
+     2. Save each frame as TIFF + full aligned stack as HSPY
+     3. Compute stage‐average image
+     4. Optionally denoise the average using:
+        - 'none'          : no denoising
+        - 'nlmeans'       : non-local means
+        - 'nlpca-<method>': clustering + NMF
+     5. Save denoised average as TIFF + HSPY
+    Logs progress and errors to log_file_path.
     """
+    from pymatchseries import MatchSeries
+
     os.makedirs(output_folder, exist_ok=True)
 
-    # Discover and sort .dm4 files
+    # 1) Gather .dm4 files
     file_list = sorted(
-        [f for f in os.listdir(input_folder) if f.endswith('.dm4') and not f.startswith('._')],
+        [f for f in os.listdir(input_folder)
+         if f.endswith(".dm4") and not f.startswith("._")],
         key=extract_number
     )
-    write_log(log_file_path, f"\n📁 Processing sample [{sample_name}], {len(file_list)} images found.")
+    if not file_list:
+        write_log(log_file_path, f"No .dm4 files found in {input_folder}.")
+        return
 
-    # Load images
+    # 2) Load images
     images = []
-    for fname in tqdm(file_list, desc=f"📥 Loading ({sample_name})"):
+    for fname in file_list:
         path = os.path.join(input_folder, fname)
         try:
-            signal = hs.load(path, lazy=True)
-            if hasattr(signal, 'data'):
-                images.append(signal)
-            else:
-                write_log(log_file_path, f"⚠️ Non-standard image skipped: {fname}")
+            sig = hs.load(path, lazy=True)
+            images.append(sig)
         except Exception as e:
-            write_log(log_file_path, f"❌ Failed to load {fname}: {e}")
+            write_log(log_file_path, f"Failed to load {fname}: {e}")
+
     if not images:
-        write_log(log_file_path, f"❌ No valid images for sample [{sample_name}], skipping.")
+        write_log(log_file_path, f"No valid images in {input_folder}.")
         return
 
-    # Stack images
-    try:
-        stack = hs.stack(images)
-    except Exception as e:
-        write_log(log_file_path, f"❌ Failed to stack images for sample [{sample_name}]: {e}")
-        return
+    # 3) Stack and configure MatchSeries
+    stack = hs.stack(images)
+    match = MatchSeries(stack)
+    match.configuration["lambda"] = regularization_lambda
 
-    # Perform non-rigid registration
+    # 4) Run registration
     try:
-        match = MatchSeries(stack)
-        match.configuration['lambda'] = regularization_lambda
-        ts = datetime.datetime.now().strftime('%Y%m%d_%H%M%S')
-        match.path = match.path + f"_{ts}"
-        write_log(log_file_path, f"📂 Working directory: {match.path}")
         match.run()
     except Exception as e:
-        write_log(log_file_path, f"❌ Registration failed for [{sample_name}]: {e}")
+        write_log(log_file_path, f"Registration failed: {e}")
         return
 
-    # Retrieve deformed images
-    try:
-        deformed = match.get_deformed_images()
-    except Exception as e:
-        write_log(log_file_path, f"❌ Failed to retrieve deformed images for [{sample_name}]: {e}")
-        return
+    # 5) Retrieve deformed image stack
+    deformed = match.get_deformed_images()
 
-    # 1) Save full aligned stack
-    try:
-        stack_out = os.path.join(output_folder, f"{filename_prefix}aligned_stack.hspy")
-        deformed.save(stack_out, overwrite=True)
-        write_log(log_file_path, f"💾 Full aligned stack saved: {stack_out}")
-    except Exception as e:
-        write_log(log_file_path, f"❌ Failed to save aligned stack for [{sample_name}]: {e}")
-
-    # 2) Save per-frame TIFFs
-    for i, img in enumerate(deformed.data):
-        frame_path = os.path.join(output_folder, f"{filename_prefix}{i:03d}.tif")
+    # 6) Save each frame as TIFF
+    for i, frame in enumerate(deformed.data):
+        norm = (frame - frame.min()) / (frame.max() - frame.min())
+        arr = (255 * norm).astype('uint8') if save_dtype == 'uint8' else (65535 * norm).astype('uint16')
+        out_tif = os.path.join(output_folder, f"{filename_prefix}{i:03d}.tif")
         try:
-            arr = np.array(img)
-            norm = (arr - arr.min()) / (arr.max() - arr.min())
-            img_array = (255 * norm).astype('uint8') if save_dtype=='uint8' else (65535 * norm).astype('uint16')
-            Image.fromarray(img_array).save(frame_path)
+            Image.fromarray(arr).save(out_tif)
         except Exception as e:
-            write_log(log_file_path, f"❌ Failed to save frame {i} for [{sample_name}]: {e}")
+            write_log(log_file_path, f"Failed to save frame {i}: {e}")
 
-    # 3) Save stage average
+    # 7) Save full aligned stack as HSPY
+    stack_out = os.path.join(output_folder, f"{filename_prefix}aligned_stack.hspy")
     try:
-        avg_img = np.array(deformed.data).mean(axis=0)
-        avg_norm = (avg_img - avg_img.min()) / (avg_img.max() - avg_img.min())
+        deformed.save(stack_out, overwrite=True)
+    except Exception as e:
+        write_log(log_file_path, f"Failed to save aligned stack: {e}")
+
+    # 8) Compute stage average and apply denoising
+    try:
+        avg = deformed.data.mean(axis=0)
+        avg_norm = (avg - avg.min()) / (avg.max() - avg.min())
+
         if denoising_method == 'nlmeans':
             sigma = np.mean(estimate_sigma(avg_norm, channel_axis=None))
-            avg_norm = denoise_nl_means(avg_norm, h=1.15*sigma, fast_mode=True, patch_size=5, patch_distance=6, channel_axis=None)
-        elif denoising_method == 'nlpca':
-            avg_norm = nl_pca_denoise(avg_norm, patch_size=nlpca_patch_size, n_clusters=nlpca_n_clusters, n_components=nlpca_n_components)
+            avg_norm = denoise_nl_means(
+                avg_norm,
+                h=1.15 * sigma,
+                fast_mode=True,
+                patch_size=5,
+                patch_distance=6,
+                channel_axis=None
+            )
+        elif denoising_method.startswith('nlpca'):
+            avg_norm = nlpca_denoise(
+                avg_norm,
+                patch_size=nlpca_patch_size,
+                n_clusters=nlpca_n_clusters,
+                n_components=nlpca_n_components,
+                method=denoising_method
+            )
 
-        # Stage average TIFF
-        avg_array = (255 * avg_norm).astype('uint8') if save_dtype=='uint8' else (65535 * avg_norm).astype('uint16')
-        avg_tiff = os.path.join(output_folder, f"{filename_prefix}average.tif")
-        Image.fromarray(avg_array).save(avg_tiff)
-        write_log(log_file_path, f"💾 Stage average TIFF saved: {avg_tiff}")
+        # Save denoised average as TIFF
+        arr_avg = (255 * avg_norm).astype('uint8') if save_dtype == 'uint8' else (65535 * avg_norm).astype('uint16')
+        avg_tif = os.path.join(output_folder, f"{filename_prefix}average.tif")
+        Image.fromarray(arr_avg).save(avg_tif)
 
-        # Stage average HSPY
+        # Save denoised average as HSPY
         avg_sig = hs.signals.Signal2D(avg_norm.astype('float32'))
         avg_hspy = os.path.join(output_folder, f"{filename_prefix}average.hspy")
         avg_sig.save(avg_hspy, overwrite=True)
-        write_log(log_file_path, f"💾 Stage average HSPY saved: {avg_hspy}")
+
+        write_log(log_file_path, "Stage average saved (TIFF & HSPY).")
     except Exception as e:
-        write_log(log_file_path, f"❌ Failed to save stage average for [{sample_name}]: {e}")
+        write_log(log_file_path, f"Stage average failed: {e}")

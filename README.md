@@ -1,8 +1,7 @@
-# Match-Series-Batch v1.1.3
+# Match-Series-Batch v1.2.0
 
 pymatchseries is necessary.Also aequires scikit-learn to be installed for NLPCA.
-
-方便自己,造福他人
+make life easier
 
 ## Advantage
 match-series-batch is a batch non-rigid alignment tool for microscope moving image (.dm4 format) sequences, integrating optional denoising, stage averaged plot export, automated logging and CLI calls, maint:
@@ -24,7 +23,7 @@ match-series-batch is a batch non-rigid alignment tool for microscope moving ima
 - Detailed logging of processing steps
 - Command-line interface
 
-## Installation
+##Installation
 You can install `match-series-batch` via pip:
 ```bash
 pip install match-series-batch
@@ -80,22 +79,9 @@ import match_series_batch
 
 - `--denoising`
   
- "nlmeans" , "nlpca" or "none"
+ "nlmeans" , "nlpca-spectral", "nlpca-gmm", "nlpca-kmeans" or "none"
  As set in config.py, Denoising method applied before saving images
-  (Default: `nlpca`)
-
-- `--nlpca_patch_size`
-  
-  Used to measure spatial ‘similarity’ and to do PCA.Should cover at least one complete ‘minimum repetition unit’, e.g., in lattice images, which typically requires ≥ twice the lattice period.
-
-- `--nlpca_n_clusters `
-  
-KMeans (or other clustering) grouping was done first for all patches, and PCA was done independently for each group.The more clusters there are, the more ‘homogeneous’ each cluster is, and the finer the corresponding PCA is.
-
-  
-- `--nlpca_n_components `
-
-  How many basis vectors are used to represent patches in each cluster.The more principal components, the smaller the reconstruction error, but prone to retain noise.The fewer the principal components, the greater the denoising effort, but detail may be lost.
+  (Default: `nlpca-spectral`)
 
 
 Notes
@@ -105,7 +91,7 @@ Notes
     •    Full processing logs are recorded automatically.
 
 
-##Notice for Macbook Users
+## Notice for Macbook Users
 If your laptop CPU is a Macbook M1/M2, MatchSeries will only work with X86_64,
 Run these scripts in a terminal to generate an X86 environment for M-series processors:
 ```bash
