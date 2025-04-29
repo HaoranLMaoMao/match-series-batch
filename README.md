@@ -61,8 +61,8 @@ from tqdm import tqdm
 from match_series_batch.utils import make_dirs, init_log
 from match_series_batch.processing import process_one_sample
 
-input_root  = "/Users/ma/Desktop/NRR/Dan_GaO0178_OUTPUT"
-output_root = "/Users/ma/Desktop/NRR/Dan_GaO0178_DENOISED"
+input_root  = ""
+output_root = ""
 make_dirs(output_root)
 log_path = os.path.join(output_root, "processing_log.txt")
 init_log(log_path)
