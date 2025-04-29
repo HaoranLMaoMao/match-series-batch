@@ -23,7 +23,7 @@ match-series-batch is a batch non-rigid alignment tool for microscope moving ima
 - Detailed logging of processing steps
 - Command-line interface
 
-##Installation
+## Installation
 You can install `match-series-batch` via pip:
 ```bash
 pip install match-series-batch
@@ -37,13 +37,55 @@ match-series-batch [OPTIONS]
 
 Example:
 ```bash
-match-series-batch --input ./input --output ./output --denoising nlpca --nlpca_patch_size 7 --nlpca_n_clusters 10 --nlpca_n_components 8
+match-series-batch \
+  --input  /path/to/your/input_root \
+  --output /path/to/your/output_root \
+  --lambda 20 \
+  --prefix Aligned_ \
+  --dtype uint16 \
+  --denoising nlpca-spectral \
+  --nlpca_patch_size 14 \
+  --nlpca_n_clusters 10 \
+  --nlpca_n_components 8
 ```
 
 or in Jupyter notebook, can use:
 ```
 import match_series_batch
 !match-series-batch[OPTIONS]
+```
+or
+```
+import os
+from tqdm import tqdm
+from match_series_batch.utils import make_dirs, init_log
+from match_series_batch.processing import process_one_sample
+
+input_root  = "/Users/ma/Desktop/NRR/Dan_GaO0178_OUTPUT"
+output_root = "/Users/ma/Desktop/NRR/Dan_GaO0178_DENOISED"
+make_dirs(output_root)
+log_path = os.path.join(output_root, "processing_log.txt")
+init_log(log_path)
+
+folders = sorted(d for d in os.listdir(input_root) if os.path.isdir(os.path.join(input_root, d)))
+
+for sample in tqdm(folders, desc="Batch processing"):
+    in_f  = os.path.join(input_root, sample)
+    out_f = os.path.join(output_root, sample)
+    make_dirs(out_f)
+    process_one_sample(
+        sample_name=sample,
+        input_folder=in_f,
+        output_folder=out_f,
+        log_file_path=log_path,
+        regularization_lambda=20,
+        filename_prefix="Final_",
+        save_dtype="uint16",
+        denoising_method="nlpca-spectral",
+        nlpca_patch_size=14,
+        nlpca_n_clusters=10,
+        nlpca_n_components=12
+    )
 ```
 # Command-line Arguments Description
 
